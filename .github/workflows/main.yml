@@ -66,4 +66,9 @@ jobs:
           labels: ${{ steps.docker_meta.outputs.labels }}
 
       - name: Image digest
-        run: echo ${{ steps.build_push.outputs.digest || steps.build.outputs.digest }}
+        run: |
+          if [[ "${{ steps.build_push.outputs.digest }}" == "" ]]; then
+            echo "${{ steps.build.outputs.digest }}"
+          else
+            echo "${{ steps.build_push.outputs.digest }}"
+          fi
