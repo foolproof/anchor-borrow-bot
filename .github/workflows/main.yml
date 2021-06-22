@@ -65,10 +65,7 @@ jobs:
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
 
+      # Echo digest so users can validate their image
       - name: Image digest
-        run: |
-          if [[ "${{ steps.build_push.outputs.digest }}" == "" ]]; then
-            echo "${{ steps.build.outputs.digest }}"
-          else
-            echo "${{ steps.build_push.outputs.digest }}"
-          fi
+        if: "${{ steps.docker_meta.outcome == 'success' }}"
+        run: echo "${{ steps.build_push.outputs.digest }}"
