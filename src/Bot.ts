@@ -64,6 +64,10 @@ export class Bot {
 			market: Denom.USD,
 		}
 
+		this.info();
+	}
+
+	info() {
 		Logger.log(dedent`<b>v0.2.6 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
@@ -77,6 +81,11 @@ export class Bot {
 					- <b>SAFE:</b> <code>${this.#config.ltv.safe}%</code>
 					- <b>LIMIT:</b> <code>${this.#config.ltv.limit}%</code>
 					- <b>BORROW:</b> <code>${this.#config.ltv.borrow}%</code>
+				
+				<u>Compound minimums:</u>
+					- <b>ANC:</b> <code>${this.#config.compoundMins.anc}</code>
+					- <b>LUNA:</b> <code>${this.#config.compoundMins.luna}</code>
+					- <b>BLUNA:</b> <code>${this.#config.compoundMins.bluna}</code>
 		`)
 	}
 
