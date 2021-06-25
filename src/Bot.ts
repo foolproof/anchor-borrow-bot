@@ -413,7 +413,7 @@ export class Bot {
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
 
 				Logger.toBroadcast(
-					`Compounded <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
+					`Compounded <code>${bLunaBalance.toFixed(0)} bLuna</code>`,
 					'tgBot'
 				)
 			}else {
