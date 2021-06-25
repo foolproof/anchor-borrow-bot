@@ -347,7 +347,7 @@ export class Bot {
 
 				Logger.toBroadcast(`Swapped ANC for Luna`, 'tgBot')
 			} else {
-				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.anc}</code> minimum.... Skipping ANC conversion`, 'tgBot')
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.anc}</code> minimum... Skipping ANC swap`, 'tgBot')
 			}
 
 			const lunaBalance = await this.getLunaBalance()
@@ -367,7 +367,7 @@ export class Bot {
 				await this.#client.tx.broadcast(tx)
 				Logger.toBroadcast(`Swapped Luna for bLuna`, 'tgBot')
 			} else {
-				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.luna}</code> minimum.... Skipping Luna conversion`, 'tgBot')
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.luna}</code> minimum... Skipping Luna swap`, 'tgBot')
 			}
 
 			const { balance } = await this.#client.wasm.contractQuery<any>(this.#addressProvider.bLunaToken(), {
@@ -387,11 +387,11 @@ export class Bot {
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
 
 				Logger.toBroadcast(
-					`Compounded... <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
+					`Compounded <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
 					'tgBot'
 				)
 			}else {
-				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.bluna}</code> minimum.... Skipping bLuna compound`, 'tgBot')
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.bluna}</code> minimum... Skipping bLuna compound`, 'tgBot')
 			}
 			
 		} catch (e) {
