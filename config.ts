@@ -35,9 +35,14 @@ export default {
 	},
 
         compoundMins: {
-                anc: 5,
-                luna: 5,
-                bluna: 5,
+				// This defines the minimum required for compound to swap ANC for Luna 
+				anc: 5,
+
+				// This defines the minimum required for compound to swap Luna for bluna
+				luna: 5,
+
+				// This defines the minimum required for compound to add the bluna into borrow
+				bluna: 5,
         },
 
 	notification: {
