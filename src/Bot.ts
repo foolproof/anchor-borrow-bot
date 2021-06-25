@@ -99,7 +99,7 @@ export class Bot {
 			value = +value
 		}
 
-		if (path === 'ltv.safe') {
+		else if (path === 'ltv.safe') {
 			if (+value >= this.#config.ltv.limit) {
 				Logger.log(`You cannot go over <code>${this.#config.ltv.limit}</code>.`)
 				return
@@ -108,7 +108,7 @@ export class Bot {
 			value = +value
 		}
 
-		if (path === 'ltv.borrow') {
+		else if (path === 'ltv.borrow') {
 			if (+value >= this.#config.ltv.safe) {
 				Logger.log(`You cannot go over <code>${this.#config.ltv.safe}</code>.`)
 				return
@@ -117,13 +117,30 @@ export class Bot {
 			value = +value
 		}
 
-		if (path === 'options.shouldBorrowMore') {
+		else if (path === 'options.shouldBorrowMore') {
 			if (!isBoolean(value)) {
 				Logger.log(`The value must be a boolean (true/false).`)
 				return
 			}
 
 			value = toBoolean(value)
+		}
+
+		else if (path === 'compoundMins.anc') {
+			value = +value
+		}
+
+		else if (path === 'compoundMins.luna') {
+			value = +value
+		}
+
+		else if (path === 'compoundMins.bluna') {
+			value = +value
+		}
+
+		else {
+			Logger.log(`Invalid set option, <code>${path}</code> is not a recognized option`)
+			return
 		}
 
 		dset(this.#config, path, value)
