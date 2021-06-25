@@ -329,13 +329,9 @@ export class Bot {
 		const ancBalance = await this.getANCBalance()
 		const ancPrice = await this.getANCPrice()
 
-		Logger.toBroadcast(
-			`Selling <code>${ancBalance.toFixed(0)} ANC</code> @ <code>${ancPrice.toFixed(3)} UST</code>`,
-			'tgBot'
-		)
-
 		try {
-			if (+ancBalance > 5) {
+			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed(0)}</code>`, 'tgBot')
+			if (+ancBalance > this.#config.compoundMins.anc) {
 				await this.#anchor.anchorToken
 					.sellANC(ancBalance.minus(1).toFixed(0))
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
@@ -349,13 +345,15 @@ export class Bot {
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
 				await this.#client.tx.broadcast(tx)
 
-				Logger.toBroadcast(`Swapped <code>${ancBalance.times(ancPrice).toFixed(0)} UST</code>`, 'tgBot')
+				Logger.toBroadcast(`Swapped ANC for Luna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.anc}</code> minimum.... Skipping ANC conversion`, 'tgBot')
 			}
 
 			const lunaBalance = await this.getLunaBalance()
-			Logger.toBroadcast(`New Luna Balance is <code>${lunaBalance.toFixed(0)}</code>`, 'tgBot')
+			Logger.toBroadcast(`Luna Balance: <code>${lunaBalance.toFixed(0)}</code>`, 'tgBot')
 
-			if (+lunaBalance > 5) {
+			if (+lunaBalance > this.#config.compoundMins.luna) {
 				const msg = new MsgExecuteContract(
 					this.#wallet.key.accAddress,
 					this.#addressProvider.bLunaHub(),
@@ -367,6 +365,9 @@ export class Bot {
 
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
 				await this.#client.tx.broadcast(tx)
+				Logger.toBroadcast(`Swapped Luna for bLuna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.luna}</code> minimum.... Skipping Luna conversion`, 'tgBot')
 			}
 
 			const { balance } = await this.#client.wasm.contractQuery<any>(this.#addressProvider.bLunaToken(), {
@@ -374,8 +375,9 @@ export class Bot {
 			})
 
 			const bLunaBalance = new Decimal(balance).dividedBy(MICRO_MULTIPLIER)
+			Logger.toBroadcast(`bLuna Balance: <code>${bLunaBalance.toFixed(0)}</code>`, 'tgBot')
 
-			if (+bLunaBalance > 5) {
+			if (+bLunaBalance > this.#config.compoundMins.bluna) {
 				await this.#anchor.borrow
 					.provideCollateral({
 						amount: bLunaBalance.minus(1).toFixed(0),
@@ -383,12 +385,15 @@ export class Bot {
 						market: MARKET_DENOMS.UUSD,
 					})
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
-			}
 
-			Logger.toBroadcast(
-				`Compounded... <code>${ancBalance.toFixed(3)} ANC</code> for <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
-				'tgBot'
-			)
+				Logger.toBroadcast(
+					`Compounded... <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
+					'tgBot'
+				)
+			}else {
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.bluna}</code> minimum.... Skipping bLuna compound`, 'tgBot')
+			}
+			
 		} catch (e) {
 			console.log(e.response.data)
 		}

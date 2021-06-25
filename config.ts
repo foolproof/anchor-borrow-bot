@@ -34,6 +34,12 @@ export default {
 		borrow: 30,
 	},
 
+        compoundMins: {
+                anc: 5,
+                luna: 5,
+                bluna: 5,
+        },
+
 	notification: {
 		tty: true,
 		telegram: true,
