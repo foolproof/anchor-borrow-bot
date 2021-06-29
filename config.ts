@@ -16,9 +16,6 @@ export default {
 		// This define if the bot should borrow more
 		shouldBorrowMore: true,
 
-		// This define if the bot should use your reward to borrow more
-		shouldCompoundsRewards: true,
-
 		// This define the number of SECONDS to wait between each verification.
 		waitFor: 15,
 	},
@@ -35,7 +32,7 @@ export default {
 	},
 
 	compoundMins: {
-		// This defines the minimum required for compound to swap ANC for Luna 
+		// This defines the minimum required for compound to swap ANC for Luna
 		anc: 5,
 
 		// This defines the minimum required for compound to swap Luna for bluna
