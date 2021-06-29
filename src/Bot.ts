@@ -28,6 +28,10 @@ function toBoolean(v) {
 	return ['true', true, '1', 1].includes(v)
 }
 
+function sleep(seconds) {
+	return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+}
+
 export class Bot {
 	#failureCount = 0
 	#walletDenom: any
@@ -337,6 +341,7 @@ export class Bot {
 		}
 
 		await this.executeClaimRewards()
+		await sleep(6)
 
 		const ancBalance = await this.getANCBalance()
 		const ancPrice = await this.getANCPrice()
@@ -344,9 +349,8 @@ export class Bot {
 		try {
 			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed(0)}</code>`, 'tgBot')
 			if (+ancBalance > this.#config.compoundMins.anc) {
-				await this.#anchor.anchorToken
-					.sellANC(ancBalance.minus(1).toFixed(0))
-					.execute(this.#wallet, { gasPrices: '0.15uusd' })
+				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed(10)).execute(this.#wallet, { gasPrices: '0.15uusd' })
+				await sleep(6)
 
 				const msg = new MsgSwap(
 					this.#wallet.key.accAddress,
@@ -356,6 +360,7 @@ export class Bot {
 
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
 				await this.#client.tx.broadcast(tx)
+				await sleep(6)
 
 				Logger.toBroadcast(`Swapped ANC for Luna`, 'tgBot')
 			} else {
@@ -380,6 +385,8 @@ export class Bot {
 
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
 				await this.#client.tx.broadcast(tx)
+				await sleep(6)
+
 				Logger.toBroadcast(`Swapped Luna for bLuna`, 'tgBot')
 			} else {
 				Logger.toBroadcast(
@@ -398,7 +405,7 @@ export class Bot {
 			if (+bLunaBalance > this.#config.compoundMins.bluna) {
 				await this.#anchor.borrow
 					.provideCollateral({
-						amount: bLunaBalance.minus(1).toFixed(0),
+						amount: bLunaBalance.toFixed(0),
 						collateral: COLLATERAL_DENOMS.UBLUNA,
 						market: MARKET_DENOMS.UUSD,
 					})
