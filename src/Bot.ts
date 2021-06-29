@@ -379,7 +379,7 @@ export class Bot {
 
 				const msg = new MsgSwap(
 					this.#wallet.key.accAddress,
-					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed()),
+					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed(0, Decimal.ROUND_DOWN)),
 					Denom.LUNA
 				)
 
