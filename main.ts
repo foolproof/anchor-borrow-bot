@@ -29,8 +29,15 @@ if (config.telegram.apiKey) {
 		bot.pause()
 	})
 
-	tgBot.command('compound', () => {
-		bot.compound()
+	tgBot.command('compound', (ctx) => {
+		const [, type] = ctx.message.text?.split(' ')
+
+		if (!['borrow', 'earn'].includes(type)) {
+			ctx.reply('You can only use this command with "borrow" or "earn" parameter')
+			return
+		}
+
+		bot.compound(type)
 	})
 
 	tgBot.command('ltv', async (ctx) => {

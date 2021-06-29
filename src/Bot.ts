@@ -331,7 +331,7 @@ export class Bot {
 		this.#status = 'IDLE'
 	}
 
-	async compound() {
+	async compound(type: 'borrow' | 'earn') {
 		this.#status = 'RUNNING'
 
 		Logger.log('Starting to compound...')
@@ -349,14 +349,27 @@ export class Bot {
 		const ancPrice = await this.getANCPrice()
 
 		try {
-			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed(0)}</code>`, 'tgBot')
+			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed()}</code>`, 'tgBot')
+
 			if (+ancBalance > this.#config.compoundMins.anc) {
 				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed(10)).execute(this.#wallet, { gasPrices: '0.15uusd' })
 				await sleep(6)
 
+				if (type === 'earn') {
+					const amount = ancBalance.times(ancPrice)
+					const msgs = this.computeDepositMessage(amount)
+					const tx = await this.#wallet.createAndSignTx({ msgs })
+					await this.#client.tx.broadcast(tx)
+
+					Logger.toBroadcast(`Deposited ${amount.toFixed()} UST`, 'tgBot')
+					Logger.broadcast('tgBot')
+					this.#status = 'IDLE'
+					return
+				}
+
 				const msg = new MsgSwap(
 					this.#wallet.key.accAddress,
-					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed(0)),
+					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed()),
 					Denom.LUNA
 				)
 
@@ -366,14 +379,11 @@ export class Bot {
 
 				Logger.toBroadcast(`Swapped ANC for Luna`, 'tgBot')
 			} else {
-				Logger.toBroadcast(
-					`→ less than <code>${this.#config.compoundMins.anc}</code> minimum... Skipping ANC swap`,
-					'tgBot'
-				)
+				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.anc}</code>... Skipping ANC swap`, 'tgBot')
 			}
 
 			const lunaBalance = await this.getLunaBalance()
-			Logger.toBroadcast(`Luna Balance: <code>${lunaBalance.toFixed(0)}</code>`, 'tgBot')
+			Logger.toBroadcast(`Luna Balance: <code>${lunaBalance.toFixed()}</code>`, 'tgBot')
 
 			if (+lunaBalance > this.#config.compoundMins.luna) {
 				const msg = new MsgExecuteContract(
@@ -382,7 +392,7 @@ export class Bot {
 					{
 						bond: { validator: process.env.VALIDATOR_ADDRESS },
 					},
-					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed(0) }
+					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed() }
 				)
 
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
@@ -391,10 +401,7 @@ export class Bot {
 
 				Logger.toBroadcast(`Swapped Luna for bLuna`, 'tgBot')
 			} else {
-				Logger.toBroadcast(
-					`→ less than <code>${this.#config.compoundMins.luna}</code> minimum... Skipping Luna swap`,
-					'tgBot'
-				)
+				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.luna}</code>... Skipping Luna swap`, 'tgBot')
 			}
 
 			const { balance } = await this.#client.wasm.contractQuery<any>(this.#addressProvider.bLunaToken(), {
@@ -402,21 +409,21 @@ export class Bot {
 			})
 
 			const bLunaBalance = new Decimal(balance).dividedBy(MICRO_MULTIPLIER)
-			Logger.toBroadcast(`bLuna Balance: <code>${bLunaBalance.toFixed(0)}</code>`, 'tgBot')
+			Logger.toBroadcast(`bLuna Balance: <code>${bLunaBalance.toFixed()}</code>`, 'tgBot')
 
 			if (+bLunaBalance > this.#config.compoundMins.bluna) {
 				await this.#anchor.borrow
 					.provideCollateral({
-						amount: bLunaBalance.toFixed(0),
+						amount: bLunaBalance.toFixed(),
 						collateral: COLLATERAL_DENOMS.UBLUNA,
 						market: MARKET_DENOMS.UUSD,
 					})
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
 
-				Logger.toBroadcast(`Compounded <code>${bLunaBalance.toFixed(0)} bLuna</code>`, 'tgBot')
+				Logger.toBroadcast(`Compounded <code>${bLunaBalance.toFixed()} bLuna</code>`, 'tgBot')
 			} else {
 				Logger.toBroadcast(
-					`→ less than <code>${this.#config.compoundMins.bluna}</code> minimum... Skipping bLuna compound`,
+					`→ less than <code>${this.#config.compoundMins.bluna}</code>... Skipping bLuna providing`,
 					'tgBot'
 				)
 			}
