@@ -64,6 +64,10 @@ export class Bot {
 			market: Denom.USD,
 		}
 
+		this.info();
+	}
+
+	info() {
 		Logger.log(dedent`<b>v0.2.6 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
@@ -77,6 +81,11 @@ export class Bot {
 					- <b>SAFE:</b> <code>${this.#config.ltv.safe}%</code>
 					- <b>LIMIT:</b> <code>${this.#config.ltv.limit}%</code>
 					- <b>BORROW:</b> <code>${this.#config.ltv.borrow}%</code>
+				
+				<u>Compound minimums:</u>
+					- <b>ANC:</b> <code>${this.#config.compoundMins.anc}</code>
+					- <b>LUNA:</b> <code>${this.#config.compoundMins.luna}</code>
+					- <b>BLUNA:</b> <code>${this.#config.compoundMins.bluna}</code>
 		`)
 	}
 
@@ -90,7 +99,7 @@ export class Bot {
 			value = +value
 		}
 
-		if (path === 'ltv.safe') {
+		else if (path === 'ltv.safe') {
 			if (+value >= this.#config.ltv.limit) {
 				Logger.log(`You cannot go over <code>${this.#config.ltv.limit}</code>.`)
 				return
@@ -99,7 +108,7 @@ export class Bot {
 			value = +value
 		}
 
-		if (path === 'ltv.borrow') {
+		else if (path === 'ltv.borrow') {
 			if (+value >= this.#config.ltv.safe) {
 				Logger.log(`You cannot go over <code>${this.#config.ltv.safe}</code>.`)
 				return
@@ -108,13 +117,30 @@ export class Bot {
 			value = +value
 		}
 
-		if (path === 'options.shouldBorrowMore') {
+		else if (path === 'options.shouldBorrowMore') {
 			if (!isBoolean(value)) {
 				Logger.log(`The value must be a boolean (true/false).`)
 				return
 			}
 
 			value = toBoolean(value)
+		}
+
+		else if (path === 'compoundMins.anc') {
+			value = +value
+		}
+
+		else if (path === 'compoundMins.luna') {
+			value = +value
+		}
+
+		else if (path === 'compoundMins.bluna') {
+			value = +value
+		}
+
+		else {
+			Logger.log(`Invalid set option, <code>${path}</code> is not a recognized option`)
+			return
 		}
 
 		dset(this.#config, path, value)
@@ -329,13 +355,9 @@ export class Bot {
 		const ancBalance = await this.getANCBalance()
 		const ancPrice = await this.getANCPrice()
 
-		Logger.toBroadcast(
-			`Selling <code>${ancBalance.toFixed(0)} ANC</code> @ <code>${ancPrice.toFixed(3)} UST</code>`,
-			'tgBot'
-		)
-
 		try {
-			if (+ancBalance > 5) {
+			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed(0)}</code>`, 'tgBot')
+			if (+ancBalance > this.#config.compoundMins.anc) {
 				await this.#anchor.anchorToken
 					.sellANC(ancBalance.minus(1).toFixed(0))
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
@@ -349,13 +371,15 @@ export class Bot {
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
 				await this.#client.tx.broadcast(tx)
 
-				Logger.toBroadcast(`Swapped <code>${ancBalance.times(ancPrice).toFixed(0)} UST</code>`, 'tgBot')
+				Logger.toBroadcast(`Swapped ANC for Luna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.anc}</code> minimum... Skipping ANC swap`, 'tgBot')
 			}
 
 			const lunaBalance = await this.getLunaBalance()
-			Logger.toBroadcast(`New Luna Balance is <code>${lunaBalance.toFixed(0)}</code>`, 'tgBot')
+			Logger.toBroadcast(`Luna Balance: <code>${lunaBalance.toFixed(0)}</code>`, 'tgBot')
 
-			if (+lunaBalance > 5) {
+			if (+lunaBalance > this.#config.compoundMins.luna) {
 				const msg = new MsgExecuteContract(
 					this.#wallet.key.accAddress,
 					this.#addressProvider.bLunaHub(),
@@ -367,6 +391,9 @@ export class Bot {
 
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
 				await this.#client.tx.broadcast(tx)
+				Logger.toBroadcast(`Swapped Luna for bLuna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.luna}</code> minimum... Skipping Luna swap`, 'tgBot')
 			}
 
 			const { balance } = await this.#client.wasm.contractQuery<any>(this.#addressProvider.bLunaToken(), {
@@ -374,8 +401,9 @@ export class Bot {
 			})
 
 			const bLunaBalance = new Decimal(balance).dividedBy(MICRO_MULTIPLIER)
+			Logger.toBroadcast(`bLuna Balance: <code>${bLunaBalance.toFixed(0)}</code>`, 'tgBot')
 
-			if (+bLunaBalance > 5) {
+			if (+bLunaBalance > this.#config.compoundMins.bluna) {
 				await this.#anchor.borrow
 					.provideCollateral({
 						amount: bLunaBalance.minus(1).toFixed(0),
@@ -383,12 +411,15 @@ export class Bot {
 						market: MARKET_DENOMS.UUSD,
 					})
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
-			}
 
-			Logger.toBroadcast(
-				`Compounded... <code>${ancBalance.toFixed(3)} ANC</code> for <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
-				'tgBot'
-			)
+				Logger.toBroadcast(
+					`Compounded <code>${bLunaBalance.toFixed(0)} bLuna</code>`,
+					'tgBot'
+				)
+			}else {
+				Logger.toBroadcast(`less than <code>${this.#config.compoundMins.bluna}</code> minimum... Skipping bLuna compound`, 'tgBot')
+			}
+			
 		} catch (e) {
 			console.log(e.response.data)
 		}
