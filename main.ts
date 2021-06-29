@@ -37,7 +37,7 @@ if (config.telegram.apiKey) {
 			return
 		}
 
-		bot.compound(type)
+		bot.compound(type as 'borrow' | 'earn')
 	})
 
 	tgBot.command('ltv', async (ctx) => {
