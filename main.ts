@@ -46,7 +46,13 @@ if (config.telegram.apiKey) {
 	})
 
 	tgBot.command('set', (ctx) => {
-		const [, path, value] = ctx.message.text.split(' ')
+		const [, path, value] = ctx.message.text?.split(' ')
+
+		if (!path || !value) {
+			ctx.reply('Send a path or value')
+			return
+		}
+
 		bot.set(path, value)
 	})
 
