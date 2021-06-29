@@ -72,7 +72,7 @@ export class Bot {
 	}
 
 	info() {
-		Logger.log(dedent`<b>v0.2.6 - Anchor Borrow / Repay Bot</b>
+		Logger.log(dedent`<b>v0.2.7 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>

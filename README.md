@@ -60,9 +60,7 @@ You will also be able to control the bot via some commands.
 - `/run` - Start the bot if it's paused;
 - `/pause` - Pause the bot, clear all caches and queues;
 - `/info` - Display current status and config;
-- `/compound` - Compound your rewards by selling them, swapping them to UST > Luna, bonding to bLuna and providing them.
-
-> :information_source: The `/compound` command has not been tested yet on the MAINNET, please, create an issue if you had any issue using it.
+- `/compound X` - Compound your rewards by selling them, swapping them to UST > Luna, bonding to bLuna and providing them (`X` can be `earn` or `borrow`).
 
 ### Changeable runtime settings (`/set`)
 
@@ -93,7 +91,15 @@ You can add fake money to your Testnet Wallet using https://faucet.terra.money/.
 
 If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr9hxzcpvf8p878cnl`.
 
+<br />
+
 ## Changelogs
+
+### 0.2.7
+
+- Fixed the `/compound` method (Thanks to @luigi311)
+- Added `earn` & `borrow` option to the `/compound` command
+- Added verification of `path` & `value` when using `/set`
 
 ### 0.2.6
 
