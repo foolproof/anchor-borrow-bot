@@ -1,7 +1,17 @@
 import { dset } from 'dset'
 import dedent from 'dedent-js'
 import Decimal from 'decimal.js'
-import { Coin, Denom, LCDClient, MnemonicKey, Msg, MsgExecuteContract, MsgSwap, Wallet } from '@terra-money/terra.js'
+import {
+	Coin,
+	Denom,
+	LCDClient,
+	MnemonicKey,
+	Msg,
+	MsgExecuteContract,
+	MsgSwap,
+	StdFee,
+	Wallet,
+} from '@terra-money/terra.js'
 import {
 	AddressProviderFromJson,
 	Anchor,
@@ -540,7 +550,9 @@ export class Bot {
 	}
 
 	executeClaimRewards() {
-		return this.#anchor.anchorToken.claimUSTBorrowRewards({ market: MARKET_DENOMS.UUSD }).execute(this.#wallet, {})
+		return this.#anchor.anchorToken
+			.claimUSTBorrowRewards({ market: MARKET_DENOMS.UUSD })
+			.execute(this.#wallet, { fee: new StdFee(600_000, { uusd: 90_000 }) })
 	}
 
 	private toBroadcast(message: Msg | Msg[], channelName: ChannelName) {
