@@ -419,10 +419,6 @@ export class Bot {
 		this.#status = 'IDLE'
 	}
 
-	getContext() {
-		return { config: this.#config, wallet: this.#wallet.key.accAddress, status: this.#status }
-	}
-
 	stopExecution() {
 		this.#status = 'IDLE'
 	}
