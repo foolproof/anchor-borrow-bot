@@ -362,7 +362,7 @@ export class Bot {
 			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed()}</code>`, 'tgBot')
 
 			if (+ancBalance > this.#config.compoundMins.anc) {
-				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed(10)).execute(this.#wallet, { gasPrices: '0.15uusd' })
+				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed()).execute(this.#wallet, { gasPrices: '0.15uusd' })
 				await sleep(6)
 
 				if (type === 'earn') {
