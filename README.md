@@ -97,9 +97,10 @@ If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr
 
 ### 0.2.7
 
-- Fixed the `/compound` method (Thanks to @luigi311)
-- Added `earn` & `borrow` option to the `/compound` command
-- Added verification of `path` & `value` when using `/set`
+- Fixed the `/compound` method (Thanks to @luigi311);
+- Added configuration of LTV & compound minimum via environment variable;
+- Added `earn` & `borrow` option to the `/compound` command;
+- Added verification of `path` & `value` when using `/set`,
 
 ### 0.2.6
 

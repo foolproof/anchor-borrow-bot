@@ -22,24 +22,24 @@ export default {
 
 	ltv: {
 		// This define the limit when the bot will repay your debt.
-		limit: 43,
+		limit: process.env.LTV_LIMIT || 43,
 
 		// This define the safe-limit that the bot will reach when repaying or borrowing more.
-		safe: 35,
+		safe: process.env.LTV_SAFE || 35,
 
 		// This define the low-limit when the bot will borrow more.
-		borrow: 30,
+		borrow: process.env.LTV_BORROW || 30,
 	},
 
 	compoundMins: {
 		// This defines the minimum required for compound to swap ANC for Luna
-		anc: 5,
+		anc: process.env.COMPOUND_ANC || 5,
 
 		// This defines the minimum required for compound to swap Luna for bluna
-		luna: 5,
+		luna: process.env.COMPOUND_LUNA || 5,
 
 		// This defines the minimum required for compound to add the bluna into borrow
-		bluna: 5,
+		bluna: process.env.COMPOUND_BLUNA || 5,
 	},
 
 	notification: {
