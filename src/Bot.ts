@@ -80,6 +80,8 @@ export class Bot {
 				<a href="https://finder.terra.money/${this.#config.chainId}/address/${this.#wallet.key.accAddress}">
 					${this.#wallet.key.accAddress}
 				</a>
+
+				<b>Status:</b> <code>${this.#status}</code>
 				
 				<u>Configuration:</u>
 					- <b>SAFE:</b> <code>${this.#config.ltv.safe}%</code>
@@ -365,7 +367,7 @@ export class Bot {
 				Logger.toBroadcast(`Swapped ANC for Luna`, 'tgBot')
 			} else {
 				Logger.toBroadcast(
-					`less than <code>${this.#config.compoundMins.anc}</code> minimum... Skipping ANC swap`,
+					`→ less than <code>${this.#config.compoundMins.anc}</code> minimum... Skipping ANC swap`,
 					'tgBot'
 				)
 			}
@@ -390,7 +392,7 @@ export class Bot {
 				Logger.toBroadcast(`Swapped Luna for bLuna`, 'tgBot')
 			} else {
 				Logger.toBroadcast(
-					`less than <code>${this.#config.compoundMins.luna}</code> minimum... Skipping Luna swap`,
+					`→ less than <code>${this.#config.compoundMins.luna}</code> minimum... Skipping Luna swap`,
 					'tgBot'
 				)
 			}
@@ -414,7 +416,7 @@ export class Bot {
 				Logger.toBroadcast(`Compounded <code>${bLunaBalance.toFixed(0)} bLuna</code>`, 'tgBot')
 			} else {
 				Logger.toBroadcast(
-					`less than <code>${this.#config.compoundMins.bluna}</code> minimum... Skipping bLuna compound`,
+					`→ less than <code>${this.#config.compoundMins.bluna}</code> minimum... Skipping bLuna compound`,
 					'tgBot'
 				)
 			}
