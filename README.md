@@ -26,6 +26,8 @@ If your LTV is lower than `ltv.borrow` (30% per default) and the option is activ
 
 ## Installation
 
+### Baremetal
+
 You will need to have `Node.js` installed on your system to run this bot.
 We highly recommend you to use [`volta.sh`](https://volta.sh/) or [`nvm`](https://github.com/nvm-sh/nvm) to manage your `Node.js` version.
 
@@ -36,11 +38,20 @@ Once you have `node` and `npm` accessible in your terminal's path, you will need
 1. Clone the repository;
 2. Install its dependencies (`npm install`);
 3. Copy the `.env.example` file to `.env` and fill all values (`cp .env.example .env`);
-4. Run the bot with `npm run start`.
+4. Run the bot with `npm run start`;
 
 > :information_source: We recommend using a tool like [`pm2`](https://github.com/Unitech/pm2) to run the bot in a background process.
 
 <br />
+
+### Docker
+
+Github actions will build a docker image and upload it to https://hub.docker.com/r/RomainLanz/anchor-borrow-bot be sure when you download a image to validate the hash by navigating to the github action of the commit you pulled and viewing the output of the Image Digest and matching it with `docker inspect --format='{{index .RepoDigests 0}}' RomainLanz/anchor-borrow-bot:main`
+
+Once you have validated the hash you can run the image by doing the following:
+
+1. Copy the `.env.example` file to `.env` in any location and fill all values;
+2. Run the bot with `docker run -v "/home/RomainLanz/anchor-borrow-bot/.env:/app/.env" RomainLanz/anchor-borrow-bot:main` besure to change `/home/RomainLanz/anchor-borrow-bot/.env` to match the location of your .env file;
 
 ## Setup Telegram Bot
 
