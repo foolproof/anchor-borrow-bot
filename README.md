@@ -104,7 +104,7 @@ If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr
 - Verify that the bot is not in pause or running for compounding;
 - Added configuration of LTV & compound minimum via environment variable;
 - Added `earn` & `borrow` option to the `/compound` command;
-- Added verification of `path` & `value` when using `/set`,
+- Added verification of `path` & `value` when using `/set`.
 
 ### 0.2.6
 

@@ -401,7 +401,7 @@ export class Bot {
 					Denom.LUNA
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], fee: new StdFee(600_000, { uusd: 90_000 }) })
 				await this.#client.tx.broadcast(tx)
 				await sleep(6)
 
