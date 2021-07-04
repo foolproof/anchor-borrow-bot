@@ -342,6 +342,24 @@ export class Bot {
 	}
 
 	async compound(type: 'borrow' | 'earn') {
+		if (this.#status === 'PAUSE') {
+			Logger.log('Bot is paused, use <code>/run</code> to start it.')
+			return
+		}
+
+		if (this.#status === 'RUNNING') {
+			Logger.log('Already running, please retry later.')
+
+			if (this.#failureCount >= 5) {
+				Logger.log('It seems that the bot is stuck! Restarting...')
+				this.pause()
+				setTimeout(() => this.run(), 1000)
+			}
+
+			this.#failureCount++
+			return
+		}
+
 		this.#status = 'RUNNING'
 
 		Logger.log('Starting to compound...')
