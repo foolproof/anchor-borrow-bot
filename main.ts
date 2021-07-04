@@ -99,9 +99,9 @@ async function main() {
 		}
 
 		bot.clearQueue('main')
+		bot.stopExecution()
 		Logger.clearChannel('main')
 	} finally {
-		bot.stopExecution()
 		bot.clearCache()
 	}
 
