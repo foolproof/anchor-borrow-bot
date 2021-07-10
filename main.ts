@@ -11,7 +11,12 @@ if (config.telegram.apiKey) {
 
 	tgBot.command('ping', (ctx) => ctx.reply('Pong!'))
 
-	tgBot.command('info', () => {
+	tgBot.command('info', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		bot.info()
 	})
 
@@ -21,15 +26,30 @@ if (config.telegram.apiKey) {
 	// 	bot.pause()
 	// })
 
-	tgBot.command('run', () => {
+	tgBot.command('run', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		bot.run()
 	})
 
-	tgBot.command('pause', () => {
+	tgBot.command('pause', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		bot.pause()
 	})
 
 	tgBot.command('compound', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		const [, type] = ctx.message.text?.split(' ')
 
 		if (!['borrow', 'earn'].includes(type)) {
@@ -41,6 +61,11 @@ if (config.telegram.apiKey) {
 	})
 
 	tgBot.command('ltv', async (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		const message = await ctx.replyWithHTML('Loading...')
 		const ltv = await bot.computeLTV()
 		ctx.telegram.editMessageText(
@@ -53,6 +78,11 @@ if (config.telegram.apiKey) {
 	})
 
 	tgBot.command('set', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		const [, path, value] = ctx.message.text?.split(' ')
 
 		if (!path || !value) {
@@ -64,6 +94,11 @@ if (config.telegram.apiKey) {
 	})
 
 	tgBot.command('goto', async (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		const [, amount] = ctx.message.text.split(' ')
 
 		if (isNaN(+amount)) {
