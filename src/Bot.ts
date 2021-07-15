@@ -386,7 +386,7 @@ export class Bot {
 				if (type === 'earn') {
 					const amount = ancBalance.times(ancPrice)
 					const msgs = this.computeDepositMessage(amount)
-					const tx = await this.#wallet.createAndSignTx({ msgs })
+					const tx = await this.#wallet.createAndSignTx({ msgs: msgs, feeDenoms: ['uusd'] })
 					await this.#client.tx.broadcast(tx)
 
 					Logger.toBroadcast(`Deposited ${amount.toFixed()} UST`, 'tgBot')
@@ -423,7 +423,7 @@ export class Bot {
 					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed() }
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], feeDenoms: ['uusd'] })
 				await this.#client.tx.broadcast(tx)
 				await sleep(6)
 
@@ -588,7 +588,7 @@ export class Bot {
 
 	private async broadcast(channelName: ChannelName) {
 		try {
-			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName] })
+			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName], feeDenoms: ['uusd'] })
 			await this.#client.tx.broadcast(tx)
 		} catch (e) {
 			Logger.log(`An error occured\n${JSON.stringify(e.response.data)}`)
