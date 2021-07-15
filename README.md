@@ -99,6 +99,7 @@ If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr
 
 **NOTE**: Ensure to remove the `# B-Harvest` after the validator address in your `.env` file.
 
+- Fixed how we pay the fee when having multiple stablecoins in the wallet (Thanks to [@etienne-napoleone](https://github.com/etienne-napoleone))
 - Fixed the `/compound` method (Thanks to [@luigi311](https://github.com/luigi311));
 - Fixed the `PAUSE` mode that may not work;
 - Verify that the bot is not in pause or running for compounding;
