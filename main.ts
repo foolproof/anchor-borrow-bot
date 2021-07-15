@@ -1,5 +1,4 @@
 require('dotenv').config()
-import dedent from 'dedent-js'
 import { Telegraf } from 'telegraf'
 import config from './config'
 import { Bot } from './src/Bot'
@@ -13,24 +12,12 @@ if (config.telegram.apiKey) {
 	tgBot.command('ping', (ctx) => ctx.reply('Pong!'))
 
 	tgBot.command('info', (ctx) => {
-		const { config, wallet, status } = bot.getContext()
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
 
-		ctx.replyWithHTML(dedent`<b>v0.2.6 - Anchor Borrow / Repay Bot</b>
-			Made by Romain Lanz
-			
-			<b>Network:</b> <code>${config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
-			<b>Address:</b>
-			<a href="https://finder.terra.money/${config.chainId}/address/${wallet}">
-				${wallet}
-			</a>
-			
-			<b>Status:</b> <code>${status}</code>
-
-			<u>Configuration:</u>
-				- <b>SAFE:</b> <code>${config.ltv.safe}%</code>
-				- <b>LIMIT:</b> <code>${config.ltv.limit}%</code>
-				- <b>BORROW:</b> <code>${config.ltv.borrow}%</code>
-		`)
+		bot.info()
 	})
 
 	// tgBot.command('repay', async (ctx) => {
@@ -39,19 +26,46 @@ if (config.telegram.apiKey) {
 	// 	bot.pause()
 	// })
 
-	tgBot.command('run', () => {
+	tgBot.command('run', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		bot.run()
 	})
 
-	tgBot.command('pause', () => {
+	tgBot.command('pause', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		bot.pause()
 	})
 
-	tgBot.command('compound', () => {
-		bot.compound()
+	tgBot.command('compound', (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
+		const [, type] = ctx.message.text?.split(' ')
+
+		if (!['borrow', 'earn'].includes(type)) {
+			ctx.reply('You can only use this command with "borrow" or "earn" parameter')
+			return
+		}
+
+		bot.compound(type as 'borrow' | 'earn')
 	})
 
 	tgBot.command('ltv', async (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		const message = await ctx.replyWithHTML('Loading...')
 		const ltv = await bot.computeLTV()
 		ctx.telegram.editMessageText(
@@ -64,11 +78,27 @@ if (config.telegram.apiKey) {
 	})
 
 	tgBot.command('set', (ctx) => {
-		const [, path, value] = ctx.message.text.split(' ')
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
+		const [, path, value] = ctx.message.text?.split(' ')
+
+		if (!path || !value) {
+			ctx.reply('Send a path or value')
+			return
+		}
+
 		bot.set(path, value)
 	})
 
 	tgBot.command('goto', async (ctx) => {
+		if (ctx.chat.id !== +config.telegram.userId) {
+			ctx.reply('fuck off')
+			return
+		}
+
 		const [, amount] = ctx.message.text.split(' ')
 
 		if (isNaN(+amount)) {
@@ -104,9 +134,9 @@ async function main() {
 		}
 
 		bot.clearQueue('main')
+		bot.stopExecution()
 		Logger.clearChannel('main')
 	} finally {
-		bot.stopExecution()
 		bot.clearCache()
 	}
 
