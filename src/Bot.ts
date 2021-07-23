@@ -1,7 +1,17 @@
 import { dset } from 'dset'
 import dedent from 'dedent-js'
 import Decimal from 'decimal.js'
-import { Coin, Denom, LCDClient, MnemonicKey, Msg, MsgExecuteContract, MsgSwap, Wallet } from '@terra-money/terra.js'
+import {
+	Coin,
+	Denom,
+	LCDClient,
+	MnemonicKey,
+	Msg,
+	MsgExecuteContract,
+	MsgSwap,
+	StdFee,
+	Wallet,
+} from '@terra-money/terra.js'
 import {
 	AddressProviderFromJson,
 	Anchor,
@@ -26,6 +36,10 @@ function isBoolean(v) {
 
 function toBoolean(v) {
 	return ['true', true, '1', 1].includes(v)
+}
+
+function sleep(seconds) {
+	return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
 }
 
 export class Bot {
@@ -64,7 +78,11 @@ export class Bot {
 			market: Denom.USD,
 		}
 
-		Logger.log(dedent`<b>v0.2.6 - Anchor Borrow / Repay Bot</b>
+		this.info()
+	}
+
+	info() {
+		Logger.log(dedent`<b>v0.2.7 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -72,11 +90,18 @@ export class Bot {
 				<a href="https://finder.terra.money/${this.#config.chainId}/address/${this.#wallet.key.accAddress}">
 					${this.#wallet.key.accAddress}
 				</a>
+
+				<b>Status:</b> <code>${this.#status}</code>
 				
 				<u>Configuration:</u>
 					- <b>SAFE:</b> <code>${this.#config.ltv.safe}%</code>
 					- <b>LIMIT:</b> <code>${this.#config.ltv.limit}%</code>
 					- <b>BORROW:</b> <code>${this.#config.ltv.borrow}%</code>
+				
+				<u>Compound minimums:</u>
+					- <b>ANC:</b> <code>${this.#config.compoundMins.anc}</code>
+					- <b>LUNA:</b> <code>${this.#config.compoundMins.luna}</code>
+					- <b>BLUNA:</b> <code>${this.#config.compoundMins.bluna}</code>
 		`)
 	}
 
@@ -88,33 +113,36 @@ export class Bot {
 			}
 
 			value = +value
-		}
-
-		if (path === 'ltv.safe') {
+		} else if (path === 'ltv.safe') {
 			if (+value >= this.#config.ltv.limit) {
 				Logger.log(`You cannot go over <code>${this.#config.ltv.limit}</code>.`)
 				return
 			}
 
 			value = +value
-		}
-
-		if (path === 'ltv.borrow') {
+		} else if (path === 'ltv.borrow') {
 			if (+value >= this.#config.ltv.safe) {
 				Logger.log(`You cannot go over <code>${this.#config.ltv.safe}</code>.`)
 				return
 			}
 
 			value = +value
-		}
-
-		if (path === 'options.shouldBorrowMore') {
+		} else if (path === 'options.shouldBorrowMore') {
 			if (!isBoolean(value)) {
 				Logger.log(`The value must be a boolean (true/false).`)
 				return
 			}
 
 			value = toBoolean(value)
+		} else if (path === 'compoundMins.anc') {
+			value = +value
+		} else if (path === 'compoundMins.luna') {
+			value = +value
+		} else if (path === 'compoundMins.bluna') {
+			value = +value
+		} else {
+			Logger.log(`Invalid set option, <code>${path}</code> is not a recognized option`)
+			return
 		}
 
 		dset(this.#config, path, value)
@@ -313,7 +341,25 @@ export class Bot {
 		this.#status = 'IDLE'
 	}
 
-	async compound() {
+	async compound(type: 'borrow' | 'earn') {
+		if (this.#status === 'PAUSE') {
+			Logger.log('Bot is paused, use <code>/run</code> to start it.')
+			return
+		}
+
+		if (this.#status === 'RUNNING') {
+			Logger.log('Already running, please retry later.')
+
+			if (this.#failureCount >= 5) {
+				Logger.log('It seems that the bot is stuck! Restarting...')
+				this.pause()
+				setTimeout(() => this.run(), 1000)
+			}
+
+			this.#failureCount++
+			return
+		}
+
 		this.#status = 'RUNNING'
 
 		Logger.log('Starting to compound...')
@@ -325,48 +371,65 @@ export class Bot {
 		}
 
 		await this.executeClaimRewards()
+		await sleep(6)
 
 		const ancBalance = await this.getANCBalance()
 		const ancPrice = await this.getANCPrice()
 
-		Logger.toBroadcast(
-			`Selling <code>${ancBalance.toFixed(0)} ANC</code> @ <code>${ancPrice.toFixed(3)} UST</code>`,
-			'tgBot'
-		)
-
 		try {
-			if (+ancBalance > 5) {
-				await this.#anchor.anchorToken
-					.sellANC(ancBalance.minus(1).toFixed(0))
-					.execute(this.#wallet, { gasPrices: '0.15uusd' })
+			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed()}</code>`, 'tgBot')
+
+			if (+ancBalance > this.#config.compoundMins.anc) {
+				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed()).execute(this.#wallet, { gasPrices: '0.15uusd' })
+				await sleep(6)
+
+				if (type === 'earn') {
+					const amount = ancBalance.times(ancPrice)
+					const msgs = this.computeDepositMessage(amount)
+					const tx = await this.#wallet.createAndSignTx({ msgs, feeDenoms: [Denom.USD] })
+					await this.#client.tx.broadcast(tx)
+
+					Logger.toBroadcast(`Deposited ${amount.toFixed()} UST`, 'tgBot')
+					Logger.broadcast('tgBot')
+					this.#status = 'IDLE'
+					return
+				}
 
 				const msg = new MsgSwap(
 					this.#wallet.key.accAddress,
-					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed(0)),
+					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed(0, Decimal.ROUND_DOWN)),
 					Denom.LUNA
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], fee: new StdFee(600_000, { uusd: 90_000 }) })
 				await this.#client.tx.broadcast(tx)
+				await sleep(6)
 
-				Logger.toBroadcast(`Swapped <code>${ancBalance.times(ancPrice).toFixed(0)} UST</code>`, 'tgBot')
+				Logger.toBroadcast(`→ Swapped ANC for Luna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.anc}</code>... Skipping ANC swap`, 'tgBot')
 			}
 
 			const lunaBalance = await this.getLunaBalance()
-			Logger.toBroadcast(`New Luna Balance is <code>${lunaBalance.toFixed(0)}</code>`, 'tgBot')
+			Logger.toBroadcast(`Luna Balance: <code>${lunaBalance.toFixed()}</code>`, 'tgBot')
 
-			if (+lunaBalance > 5) {
+			if (+lunaBalance > this.#config.compoundMins.luna) {
 				const msg = new MsgExecuteContract(
 					this.#wallet.key.accAddress,
 					this.#addressProvider.bLunaHub(),
 					{
 						bond: { validator: process.env.VALIDATOR_ADDRESS },
 					},
-					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed(0) }
+					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed() }
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], feeDenoms: [Denom.USD] })
 				await this.#client.tx.broadcast(tx)
+				await sleep(6)
+
+				Logger.toBroadcast(`→ Swapped Luna for bLuna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.luna}</code>... Skipping Luna swap`, 'tgBot')
 			}
 
 			const { balance } = await this.#client.wasm.contractQuery<any>(this.#addressProvider.bLunaToken(), {
@@ -374,31 +437,30 @@ export class Bot {
 			})
 
 			const bLunaBalance = new Decimal(balance).dividedBy(MICRO_MULTIPLIER)
+			Logger.toBroadcast(`bLuna Balance: <code>${bLunaBalance.toFixed()}</code>`, 'tgBot')
 
-			if (+bLunaBalance > 5) {
+			if (+bLunaBalance > this.#config.compoundMins.bluna) {
 				await this.#anchor.borrow
 					.provideCollateral({
-						amount: bLunaBalance.minus(1).toFixed(0),
+						amount: bLunaBalance.toFixed(),
 						collateral: COLLATERAL_DENOMS.UBLUNA,
 						market: MARKET_DENOMS.UUSD,
 					})
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
-			}
 
-			Logger.toBroadcast(
-				`Compounded... <code>${ancBalance.toFixed(3)} ANC</code> for <code>${bLunaBalance.toFixed(3)} bLuna</code>`,
-				'tgBot'
-			)
+				Logger.toBroadcast(`→ Compounded <code>${bLunaBalance.toFixed()} bLuna</code>`, 'tgBot')
+			} else {
+				Logger.toBroadcast(
+					`→ less than <code>${this.#config.compoundMins.bluna}</code>... Skipping bLuna providing`,
+					'tgBot'
+				)
+			}
 		} catch (e) {
 			console.log(e.response.data)
 		}
 
 		Logger.broadcast('tgBot')
 		this.#status = 'IDLE'
-	}
-
-	getContext() {
-		return { config: this.#config, wallet: this.#wallet.key.accAddress, status: this.#status }
 	}
 
 	stopExecution() {
@@ -506,7 +568,9 @@ export class Bot {
 	}
 
 	executeClaimRewards() {
-		return this.#anchor.anchorToken.claimUSTBorrowRewards({ market: MARKET_DENOMS.UUSD }).execute(this.#wallet, {})
+		return this.#anchor.anchorToken
+			.claimUSTBorrowRewards({ market: MARKET_DENOMS.UUSD })
+			.execute(this.#wallet, { fee: new StdFee(600_000, { uusd: 90_000 }) })
 	}
 
 	private toBroadcast(message: Msg | Msg[], channelName: ChannelName) {
@@ -524,7 +588,7 @@ export class Bot {
 
 	private async broadcast(channelName: ChannelName) {
 		try {
-			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName] })
+			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName], feeDenoms: [Denom.USD] })
 			await this.#client.tx.broadcast(tx)
 		} catch (e) {
 			Logger.log(`An error occured\n${JSON.stringify(e.response.data)}`)
