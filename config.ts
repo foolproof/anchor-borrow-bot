@@ -22,13 +22,13 @@ export default {
 
 	ltv: {
 		// This define the limit when the bot will repay your debt.
-		limit: process.env.LTV_LIMIT || 43,
+		limit: process.env.LTV_LIMIT || 53,
 
 		// This define the safe-limit that the bot will reach when repaying or borrowing more.
-		safe: process.env.LTV_SAFE || 35,
+		safe: process.env.LTV_SAFE || 45,
 
 		// This define the low-limit when the bot will borrow more.
-		borrow: process.env.LTV_BORROW || 30,
+		borrow: process.env.LTV_BORROW || 40,
 	},
 
 	compoundMins: {
