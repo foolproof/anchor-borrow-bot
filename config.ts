@@ -1,6 +1,6 @@
 export default {
-	// This should be your wallet private key
-	privateKey: process.env.KEY || '',
+	// This should be your wallet mnemonic (24 words).
+	mnemonic: process.env.MNEMONIC,
 
 	// This is Terra Blockchain information
 	lcdUrl: process.env.LCD_URL,
@@ -16,25 +16,30 @@ export default {
 		// This define if the bot should borrow more
 		shouldBorrowMore: true,
 
-		// This define if the bot should use your reward to borrow more
-		shouldCompoundsRewards: true,
-
 		// This define the number of SECONDS to wait between each verification.
 		waitFor: 15,
-
-		// This define the number of uncaught issue the bot can have before shutting down, 0 = unlimited
-		maxFailure: 3,
 	},
 
 	ltv: {
 		// This define the limit when the bot will repay your debt.
-		limit: 43,
+		limit: process.env.LTV_LIMIT || 53,
 
 		// This define the safe-limit that the bot will reach when repaying or borrowing more.
-		safe: 35,
+		safe: process.env.LTV_SAFE || 45,
 
 		// This define the low-limit when the bot will borrow more.
-		borrow: 30,
+		borrow: process.env.LTV_BORROW || 40,
+	},
+
+	compoundMins: {
+		// This defines the minimum required for compound to swap ANC for Luna
+		anc: process.env.COMPOUND_ANC || 5,
+
+		// This defines the minimum required for compound to swap Luna for bluna
+		luna: process.env.COMPOUND_LUNA || 5,
+
+		// This defines the minimum required for compound to add the bluna into borrow
+		bluna: process.env.COMPOUND_BLUNA || 5,
 	},
 
 	notification: {

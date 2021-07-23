@@ -4,12 +4,13 @@
 	"author": "Romain Lanz <romain.lanz@pm.me>",
 	"license": "MIT",
 	"scripts": {
-		"start": "ts-node main.ts"
+		"start": "ts-node --transpile-only main.ts",
+		"dev": "ts-node main.ts"
 	},
 	"homepage": "https://github.com/RomainLanz/anchor-repay#readme",
 	"dependencies": {
 		"@anchor-protocol/anchor.js": "^1.0.1",
-		"@terra-money/terra.js": "^1.8.0",
+		"@terra-money/terra.js": "^1.8.3",
 		"decimal.js": "^10.2.1",
 		"dedent-js": "^1.0.1",
 		"dotenv": "^10.0.0",
@@ -18,9 +19,9 @@
 		"telegraf": "^4.3.0"
 	},
 	"devDependencies": {
-		"prettier": "^2.3.0",
+		"prettier": "^2.3.1",
 		"ts-node": "^10.0.0",
-		"typescript": "^4.3.2"
+		"typescript": "^4.3.4"
 	},
 	"repository": {
 		"type": "git",

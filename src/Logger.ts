@@ -30,13 +30,7 @@ export class Logger {
 				}),
 				retry: 5,
 			})
-			.catch((e) => {
-				if (e.response) {
-					console.error('[Logger TG Bot]', e.response?.data)	
-				} else {
-					console.error('[Logger TG Bot]', e)
-				}
-			})
+			.catch(() => {})
 	}
 
 	static clearChannel(channelName: ChannelName) {

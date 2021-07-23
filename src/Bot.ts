@@ -1,7 +1,17 @@
 import { dset } from 'dset'
 import dedent from 'dedent-js'
 import Decimal from 'decimal.js'
-import { Coin, Denom, LCDClient, MnemonicKey, Msg, MsgExecuteContract, MsgSwap, Wallet } from '@terra-money/terra.js'
+import {
+	Coin,
+	Denom,
+	LCDClient,
+	MnemonicKey,
+	Msg,
+	MsgExecuteContract,
+	MsgSwap,
+	StdFee,
+	Wallet,
+} from '@terra-money/terra.js'
 import {
 	AddressProviderFromJson,
 	Anchor,
@@ -18,8 +28,22 @@ const MICRO_MULTIPLIER = 1_000_000
 type Channels = { main: Msg[]; tgBot: Msg[] }
 type ChannelName = keyof Channels
 
+type BotStatus = 'IDLE' | 'RUNNING' | 'PAUSE'
+
+function isBoolean(v) {
+	return ['true', true, '1', 1, 'false', false, '0', 0].includes(v)
+}
+
+function toBoolean(v) {
+	return ['true', true, '1', 1].includes(v)
+}
+
+function sleep(seconds) {
+	return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+}
+
 export class Bot {
-	#running = false
+	#failureCount = 0
 	#walletDenom: any
 	#config: Record<string, any>
 	#cache: Map<string, Decimal> = new Map()
@@ -27,6 +51,7 @@ export class Bot {
 	#anchor: Anchor
 	#wallet: Wallet
 	#txChannels: Channels = { main: [], tgBot: [] }
+	#status: BotStatus = 'IDLE'
 	#addressProvider: AddressProviderFromJson
 
 	constructor(config: any) {
@@ -45,7 +70,7 @@ export class Bot {
 		this.#anchor = new Anchor(this.#client, this.#addressProvider)
 
 		// Initialization of the user Wallet
-		const key = new MnemonicKey({ mnemonic: this.#config.privateKey })
+		const key = new MnemonicKey({ mnemonic: this.#config.mnemonic })
 		this.#wallet = new Wallet(this.#client, key)
 
 		this.#walletDenom = {
@@ -53,7 +78,11 @@ export class Bot {
 			market: Denom.USD,
 		}
 
-		Logger.log(dedent`<b>v0.2.5 - Anchor Borrow / Repay Bot</b>
+		this.info()
+	}
+
+	info() {
+		Logger.log(dedent`<b>v0.2.8 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -61,45 +90,181 @@ export class Bot {
 				<a href="https://finder.terra.money/${this.#config.chainId}/address/${this.#wallet.key.accAddress}">
 					${this.#wallet.key.accAddress}
 				</a>
+
+				<b>Status:</b> <code>${this.#status}</code>
 				
 				<u>Configuration:</u>
 					- <b>SAFE:</b> <code>${this.#config.ltv.safe}%</code>
 					- <b>LIMIT:</b> <code>${this.#config.ltv.limit}%</code>
 					- <b>BORROW:</b> <code>${this.#config.ltv.borrow}%</code>
-					- <b>SHOULD_BORROW_MORE:</b> <code>${this.#config.options.shouldBorrowMore}</code>
-					- <b>MAX_FAILURE:</b> <code>${this.#config.options.maxFailure}</code>
+				
+				<u>Compound minimums:</u>
+					- <b>ANC:</b> <code>${this.#config.compoundMins.anc}</code>
+					- <b>LUNA:</b> <code>${this.#config.compoundMins.luna}</code>
+					- <b>BLUNA:</b> <code>${this.#config.compoundMins.bluna}</code>
 		`)
 	}
 
-	set(path: string, value: string) {
+	set(path: string, value: any) {
+		if (path === 'ltv.limit') {
+			if (+value > 59) {
+				Logger.log('You cannot go over <code>59</code>.')
+				return
+			}
+
+			value = +value
+		} else if (path === 'ltv.safe') {
+			if (+value >= this.#config.ltv.limit) {
+				Logger.log(`You cannot go over <code>${this.#config.ltv.limit}</code>.`)
+				return
+			}
+
+			value = +value
+		} else if (path === 'ltv.borrow') {
+			if (+value >= this.#config.ltv.safe) {
+				Logger.log(`You cannot go over <code>${this.#config.ltv.safe}</code>.`)
+				return
+			}
+
+			value = +value
+		} else if (path === 'options.shouldBorrowMore') {
+			if (!isBoolean(value)) {
+				Logger.log(`The value must be a boolean (true/false).`)
+				return
+			}
+
+			value = toBoolean(value)
+		} else if (path === 'compoundMins.anc') {
+			value = +value
+		} else if (path === 'compoundMins.luna') {
+			value = +value
+		} else if (path === 'compoundMins.bluna') {
+			value = +value
+		} else {
+			Logger.log(`Invalid set option, <code>${path}</code> is not a recognized option`)
+			return
+		}
+
 		dset(this.#config, path, value)
+		Logger.log(`Configuration changed. <code>${path}</code> is now at <code>${value}</code>`)
 	}
 
+	run() {
+		if (this.#status !== 'PAUSE') {
+			Logger.log('Bot should be paused to run this command')
+			return
+		}
+
+		this.#status = 'IDLE'
+		Logger.log('Bot started')
+	}
+
+	pause() {
+		this.#status = 'PAUSE'
+		this.#failureCount = 0
+		this.clearCache()
+		this.clearQueue('main')
+		this.clearQueue('tgBot')
+		Logger.log('Bot paused')
+	}
+
+	// async repay() {
+	// 	if (this.#pause) {
+	// 		Logger.log('Bot is paused, use <code>/run</code> to start it.')
+	// 		return
+	// 	}
+
+	// 	if (this.#running) {
+	// 		Logger.log('Already running, please retry later.')
+	// 		return
+	// 	}
+
+	// 	this.#running = true
+	// 	const ltv = await this.computeLTV()
+
+	// 	Logger.log(`LTV is at <code>${ltv.toFixed(3)}%</code>... repaying...`)
+
+	// 	const amountToRepay = await this.computeAmountToRepay(0)
+	// 	const walletBalance = await this.getUSTBalance()
+
+	// 	if (+walletBalance < +amountToRepay) {
+	// 		Logger.toBroadcast('Insufficient liquidity in your wallet... withdrawing...', 'tgBot')
+	// 		const depositAmount = await this.getDeposit()
+
+	// 		if (+depositAmount.plus(walletBalance) < +amountToRepay) {
+	// 			this.toBroadcast(this.computeWithdrawMessage(depositAmount), 'tgBot')
+	// 			Logger.toBroadcast(`Withdrawed <code>${depositAmount.toFixed(3)} UST</code>...`, 'tgBot')
+	// 		} else {
+	// 			this.toBroadcast(this.computeWithdrawMessage(amountToRepay.minus(walletBalance).plus(10)), 'tgBot')
+	// 			Logger.toBroadcast(
+	// 				`Withdrawed <code>${amountToRepay.minus(walletBalance).plus(10).toFixed(3)} UST</code>...`,
+	// 				'tgBot'
+	// 			)
+	// 		}
+	// 	}
+
+	// 	if (this.#txChannels['tgBot'].length > 0) {
+	// 		await this.broadcast('tgBot')
+	// 	}
+
+	// 	const walletBalance2 = await this.getUSTBalance()
+
+	// 	if (+walletBalance2 < +amountToRepay) {
+	// 		this.toBroadcast(this.computeRepayMessage(walletBalance2), 'tgBot')
+	// 		Logger.toBroadcast(`Repaid <code>${walletBalance2.toFixed(3)} UST</code>`, 'tgBot')
+	// 	} else {
+	// 		this.toBroadcast(this.computeRepayMessage(amountToRepay), 'tgBot')
+	// 		Logger.toBroadcast(`Repaid <code>${amountToRepay.toFixed(3)} UST</code>`, 'tgBot')
+	// 	}
+
+	// 	await sleep(10)
+	// 	await this.broadcast('tgBot')
+	// 	Logger.broadcast('tgBot')
+	// 	this.stopExecution()
+	// 	this.clearCache()
+	// 	this.clearQueue('tgBot')
+	// }
+
 	async execute(goTo?: number, channelName: ChannelName = 'main') {
-		if (this.#running) {
+		if (this.#status === 'PAUSE') {
 			if (channelName === 'tgBot') {
-				Logger.log('Already running, please retry later.')
+				Logger.log('Bot is paused, use <code>/run</code> to start it.')
 			}
 
 			return
 		}
 
-		if (goTo) {
+		if (this.#status === 'RUNNING') {
+			if (channelName === 'tgBot') {
+				Logger.log('Already running, please retry later.')
+			}
+
+			if (this.#failureCount >= 5) {
+				Logger.log('It seems that the bot is stuck! Restarting...')
+				this.pause()
+				setTimeout(() => this.run(), 1000)
+			}
+
+			this.#failureCount++
+			return
+		}
+
+		if (typeof goTo !== 'undefined') {
 			if (goTo >= this.#config.ltv.limit) {
 				Logger.log(`You cannot try to go over ${this.#config.ltv.limit}%`)
 				return
 			}
 
-			if (goTo <= this.#config.ltv.borrow) {
+			if (this.#config.options.shouldBorrowMore && goTo <= this.#config.ltv.borrow) {
 				Logger.log(`You cannot try to go under ${this.#config.ltv.borrow}%`)
 				return
 			}
 		}
 
-		this.#running = true
+		this.#status = 'RUNNING'
 		const ltv = await this.computeLTV()
 
-		if (this.#config.options.shouldBorrowMore && +ltv.toFixed(3) < (goTo || this.#config.ltv.borrow)) {
+		if (this.#config.options.shouldBorrowMore && +ltv.toFixed(3) < (goTo ?? this.#config.ltv.borrow)) {
 			Logger.log(`LTV is at <code>${ltv.toFixed(3)}%</code>... borrowing...`)
 
 			const amountToBorrow = await this.computeAmountToBorrow(goTo)
@@ -114,7 +279,7 @@ export class Bot {
 			)
 		}
 
-		if (+ltv.toFixed(3) > (goTo || this.#config.ltv.limit)) {
+		if (+ltv.toFixed(3) > (goTo ?? this.#config.ltv.limit)) {
 			Logger.log(`LTV is at <code>${ltv.toFixed(3)}%</code>... repaying...`)
 
 			const amountToRepay = await this.computeAmountToRepay(goTo)
@@ -153,7 +318,8 @@ export class Bot {
 						Logger.toBroadcast(`Impossible to repay <code>${amountToRepay.toFixed(3)} UST</code>`, channelName)
 						Logger.broadcast(channelName)
 						this.#txChannels['main'] = []
-						this.#running = false
+						this.#status = 'IDLE'
+						this.#failureCount = 0
 						return
 					}
 				}
@@ -171,55 +337,99 @@ export class Bot {
 			Logger.broadcast(channelName)
 		}
 
-		this.#running = false
+		this.#failureCount = 0
+		this.#status = 'IDLE'
 	}
 
-	// TODO: Need to do some debugging and refactoring once it works
-	async compound() {
-		this.#running = true
+	async compound(type: 'borrow' | 'earn') {
+		if (this.#status === 'PAUSE') {
+			Logger.log('Bot is paused, use <code>/run</code> to start it.')
+			return
+		}
+
+		if (this.#status === 'RUNNING') {
+			Logger.log('Already running, please retry later.')
+
+			if (this.#failureCount >= 5) {
+				Logger.log('It seems that the bot is stuck! Restarting...')
+				this.pause()
+				setTimeout(() => this.run(), 1000)
+			}
+
+			this.#failureCount++
+			return
+		}
+
+		this.#status = 'RUNNING'
 
 		Logger.log('Starting to compound...')
 
+		if (!process.env.VALIDATOR_ADDRESS) {
+			Logger.log('Invalid Validator Address')
+			this.#status = 'IDLE'
+			return
+		}
+
 		await this.executeClaimRewards()
+		await sleep(6)
 
 		const ancBalance = await this.getANCBalance()
 		const ancPrice = await this.getANCPrice()
 
-		Logger.toBroadcast(`ANC Balance ${ancBalance.toFixed(0)} @ ${ancPrice.toFixed(3)} UST`, 'tgBot')
-
 		try {
-			if (+ancBalance > 5) {
-				await this.#anchor.anchorToken
-					.sellANC(ancBalance.minus(1).toFixed(0))
-					.execute(this.#wallet, { gasPrices: '0.15uusd' })
+			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed()}</code>`, 'tgBot')
+
+			if (+ancBalance > this.#config.compoundMins.anc) {
+				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed()).execute(this.#wallet, { gasPrices: '0.15uusd' })
+				await sleep(6)
+
+				if (type === 'earn') {
+					const amount = ancBalance.times(ancPrice)
+					const msgs = this.computeDepositMessage(amount)
+					const tx = await this.#wallet.createAndSignTx({ msgs, feeDenoms: [Denom.USD] })
+					await this.#client.tx.broadcast(tx)
+
+					Logger.toBroadcast(`Deposited ${amount.toFixed()} UST`, 'tgBot')
+					Logger.broadcast('tgBot')
+					this.#status = 'IDLE'
+					return
+				}
 
 				const msg = new MsgSwap(
 					this.#wallet.key.accAddress,
-					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed(0)),
+					new Coin(Denom.USD, ancBalance.times(ancPrice).times(MICRO_MULTIPLIER).toFixed(0, Decimal.ROUND_DOWN)),
 					Denom.LUNA
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], fee: new StdFee(600_000, { uusd: 90_000 }) })
 				await this.#client.tx.broadcast(tx)
+				await sleep(6)
 
-				Logger.toBroadcast(`Swapped ${ancBalance.times(ancPrice).toFixed(0)} UST for Luna`, 'tgBot')
+				Logger.toBroadcast(`→ Swapped ANC for Luna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.anc}</code>... Skipping ANC swap`, 'tgBot')
 			}
 
 			const lunaBalance = await this.getLunaBalance()
-			Logger.toBroadcast(`Luna Balance ${lunaBalance.toFixed(0)}`, 'tgBot')
+			Logger.toBroadcast(`Luna Balance: <code>${lunaBalance.toFixed()}</code>`, 'tgBot')
 
-			if (+lunaBalance > 5) {
+			if (+lunaBalance > this.#config.compoundMins.luna) {
 				const msg = new MsgExecuteContract(
 					this.#wallet.key.accAddress,
-					'terra1fflas6wv4snv8lsda9knvq2w0cyt493r8puh2e',
+					this.#addressProvider.bLunaHub(),
 					{
-						bond: { validator: 'terravaloper1krj7amhhagjnyg2tkkuh6l0550y733jnjnnlzy' },
+						bond: { validator: process.env.VALIDATOR_ADDRESS },
 					},
-					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed(0) }
+					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed() }
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], feeDenoms: [Denom.USD] })
 				await this.#client.tx.broadcast(tx)
+				await sleep(6)
+
+				Logger.toBroadcast(`→ Swapped Luna for bLuna`, 'tgBot')
+			} else {
+				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.luna}</code>... Skipping Luna swap`, 'tgBot')
 			}
 
 			const { balance } = await this.#client.wasm.contractQuery<any>(this.#addressProvider.bLunaToken(), {
@@ -227,28 +437,34 @@ export class Bot {
 			})
 
 			const bLunaBalance = new Decimal(balance).dividedBy(MICRO_MULTIPLIER)
+			Logger.toBroadcast(`bLuna Balance: <code>${bLunaBalance.toFixed()}</code>`, 'tgBot')
 
-			if (+bLunaBalance > 5) {
+			if (+bLunaBalance > this.#config.compoundMins.bluna) {
 				await this.#anchor.borrow
 					.provideCollateral({
-						amount: bLunaBalance.minus(1).toFixed(0),
+						amount: bLunaBalance.toFixed(),
 						collateral: COLLATERAL_DENOMS.UBLUNA,
 						market: MARKET_DENOMS.UUSD,
 					})
 					.execute(this.#wallet, { gasPrices: '0.15uusd' })
-			}
 
-			Logger.toBroadcast(`Compouded... ${ancBalance.toFixed(3)} ANC => ${bLunaBalance.toFixed(3)} bLuna`, 'tgBot')
+				Logger.toBroadcast(`→ Compounded <code>${bLunaBalance.toFixed()} bLuna</code>`, 'tgBot')
+			} else {
+				Logger.toBroadcast(
+					`→ less than <code>${this.#config.compoundMins.bluna}</code>... Skipping bLuna providing`,
+					'tgBot'
+				)
+			}
 		} catch (e) {
 			console.log(e.response.data)
 		}
 
 		Logger.broadcast('tgBot')
-		this.#running = false
+		this.#status = 'IDLE'
 	}
 
 	stopExecution() {
-		this.#running = false
+		this.#status = 'IDLE'
 	}
 
 	clearCache() {
@@ -281,13 +497,13 @@ export class Bot {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
 
-		return borrowedValue.dividedBy(borrowLimit.times(2)).times(100)
+		return borrowedValue.dividedBy(borrowLimit.times(10).dividedBy(6)).times(100)
 	}
 
 	async computeAmountToRepay(target = this.#config.ltv.safe) {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
-		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(2).dividedBy(100))
+		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100)
 
 		return borrowedValue.minus(amountForSafeZone)
 	}
@@ -296,7 +512,7 @@ export class Bot {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
 
-		return new Decimal(target).times(borrowLimit.times(2)).dividedBy(100).minus(borrowedValue)
+		return new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100).minus(borrowedValue)
 	}
 
 	getDeposit(): Promise<Decimal> {
@@ -352,7 +568,9 @@ export class Bot {
 	}
 
 	executeClaimRewards() {
-		return this.#anchor.anchorToken.claimUSTBorrowRewards({ market: MARKET_DENOMS.UUSD }).execute(this.#wallet, {})
+		return this.#anchor.anchorToken
+			.claimUSTBorrowRewards({ market: MARKET_DENOMS.UUSD })
+			.execute(this.#wallet, { fee: new StdFee(600_000, { uusd: 90_000 }) })
 	}
 
 	private toBroadcast(message: Msg | Msg[], channelName: ChannelName) {
@@ -370,10 +588,10 @@ export class Bot {
 
 	private async broadcast(channelName: ChannelName) {
 		try {
-			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName] })
+			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName], feeDenoms: [Denom.USD] })
 			await this.#client.tx.broadcast(tx)
 		} catch (e) {
-			Logger.log(`An error occured\n${e.response.data}`)
+			Logger.log(`An error occured\n${JSON.stringify(e.response.data)}`)
 		} finally {
 			this.#txChannels[channelName] = []
 		}
