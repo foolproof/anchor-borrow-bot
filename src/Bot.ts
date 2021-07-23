@@ -107,8 +107,8 @@ export class Bot {
 
 	set(path: string, value: any) {
 		if (path === 'ltv.limit') {
-			if (+value > 49) {
-				Logger.log('You cannot go over <code>49</code>.')
+			if (+value > this.#config.anchor.maxLTV-1) {
+				Logger.log(`You cannot go over <code>${this.#config.anchor.maxLTV-1}</code>.`)
 				return
 			}
 
@@ -496,23 +496,24 @@ export class Bot {
 	async computeLTV() {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
-
-		return borrowedValue.dividedBy(borrowLimit.times(2)).times(100)
+		return borrowedValue.dividedBy(borrowLimit).times(this.#config.anchor.maxLTV)
 	}
 
 	async computeAmountToRepay(target = this.#config.ltv.safe) {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
-		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(2).dividedBy(100))
-
+		const maxLTV = new Decimal(this.#config.anchor.maxLTV)
+		const amountForSafeZone = new Decimal(target).times(borrowLimit.dividedBy(maxLTV))
+		
 		return borrowedValue.minus(amountForSafeZone)
 	}
 
 	async computeAmountToBorrow(target = this.#config.ltv.safe) {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
+		const maxLTV = new Decimal(this.#config.anchor.maxLTV)
 
-		return new Decimal(target).times(borrowLimit.times(2)).dividedBy(100).minus(borrowedValue)
+		return new Decimal(target).times(borrowLimit.dividedBy(maxLTV)).minus(borrowedValue)
 	}
 
 	getDeposit(): Promise<Decimal> {
