@@ -95,6 +95,10 @@ If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr
 
 ## Changelogs
 
+### 0.2.9
+
+- Increase gas adjustement to avoid `out-of-gas` error.
+
 ### 0.2.8
 
 - Fixed LTV computing since Borrow Limit is now at 60%.
