@@ -11,7 +11,7 @@ The main goal of this bot is to avoid being liquidated due to the price volatili
 
 The bot will fetch your current LTV every X seconds (10 per default).
 
-If your LTV is higher than `ltv.limit` (43% per default), the bot will try to repay the sum needed to make your LTV back at `ltv.safe` (35% per default).
+If your LTV is higher than `ltv.limit` (53% per default), the bot will try to repay the sum needed to make your LTV back at `ltv.safe` (45% per default).
 
 1. We verify the balance of your wallet to see if you have enough money to repay;
 2. We verify the balance of your deposit to see if you can withdraw from it to repay;
@@ -20,7 +20,7 @@ If your LTV is higher than `ltv.limit` (43% per default), the bot will try to re
 
 > :information_source: If we need to claim any rewards, we will sell only the required amount and stake in governance the rest of your token.
 
-If your LTV is lower than `ltv.borrow` (30% per default) and the option is activated, the bot will borrow more to reach the `ltv.safe` (35% per default), then it will deposit the amount borrowed.
+If your LTV is lower than `ltv.borrow` (40% per default) and the option is activated, the bot will borrow more to reach the `ltv.safe` (45% per default), then it will deposit the amount borrowed.
 
 <br />
 
@@ -95,10 +95,16 @@ If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr
 
 ## Changelogs
 
+### 0.2.8
+
+- Fixed LTV computing since Borrow Limit is now at 60%.
+
 ### 0.2.7
 
 **NOTE**: Ensure to remove the `# B-Harvest` after the validator address in your `.env` file.
 
+- Fixed security issue where other people could control the bot via Telegram
+- Fixed how we pay the fee when having multiple stablecoins in the wallet (Thanks to [@etienne-napoleone](https://github.com/etienne-napoleone))
 - Fixed the `/compound` method (Thanks to [@luigi311](https://github.com/luigi311));
 - Fixed the `PAUSE` mode that may not work;
 - Verify that the bot is not in pause or running for compounding;

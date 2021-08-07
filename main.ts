@@ -155,7 +155,7 @@ if (process.env.CHAIN_ID && process.env.CHAIN_ID.split('-').length !== 2) {
 	throw new Error('Invalid CHAIN ID provided.')
 }
 
-if (config.ltv.limit > 49) {
+if (config.ltv.limit > 59) {
 	throw new Error('ltv.limit is too high.')
 }
 

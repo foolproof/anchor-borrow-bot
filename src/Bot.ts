@@ -83,7 +83,7 @@ export class Bot {
 	}
 
 	info() {
-		Logger.log(dedent`<b>v0.2.7 - Anchor Borrow / Repay Bot</b>
+		Logger.log(dedent`<b>v0.2.8 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -108,8 +108,8 @@ export class Bot {
 
 	set(path: string, value: any) {
 		if (path === 'ltv.limit') {
-			if (+value > 49) {
-				Logger.log('You cannot go over <code>49</code>.')
+			if (+value > 59) {
+				Logger.log('You cannot go over <code>59</code>.')
 				return
 			}
 
@@ -387,7 +387,7 @@ export class Bot {
 				if (type === 'earn') {
 					const amount = ancBalance.times(ancPrice)
 					const msgs = this.computeDepositMessage(amount)
-					const tx = await this.#wallet.createAndSignTx({ msgs })
+					const tx = await this.#wallet.createAndSignTx({ msgs, feeDenoms: [Denom.USD] })
 					await this.#client.tx.broadcast(tx)
 
 					Logger.toBroadcast(`Deposited ${amount.toFixed()} UST`, 'tgBot')
@@ -423,7 +423,7 @@ export class Bot {
 					{ uluna: lunaBalance.times(MICRO_MULTIPLIER).toFixed() }
 				)
 
-				const tx = await this.#wallet.createAndSignTx({ msgs: [msg] })
+				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], feeDenoms: [Denom.USD] })
 				await this.#client.tx.broadcast(tx)
 				await sleep(6)
 
@@ -497,13 +497,13 @@ export class Bot {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
 
-		return borrowedValue.dividedBy(borrowLimit.times(2)).times(100)
+		return borrowedValue.dividedBy(borrowLimit.times(10).dividedBy(6)).times(100)
 	}
 
 	async computeAmountToRepay(target = this.#config.ltv.safe) {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
-		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(2).dividedBy(100))
+		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100)
 
 		return borrowedValue.minus(amountForSafeZone)
 	}
@@ -512,7 +512,7 @@ export class Bot {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
 
-		return new Decimal(target).times(borrowLimit.times(2)).dividedBy(100).minus(borrowedValue)
+		return new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100).minus(borrowedValue)
 	}
 
 	getDeposit(): Promise<Decimal> {
@@ -588,7 +588,7 @@ export class Bot {
 
 	private async broadcast(channelName: ChannelName) {
 		try {
-			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName] })
+			const tx = await this.#wallet.createAndSignTx({ msgs: this.#txChannels[channelName], feeDenoms: [Denom.USD] })
 			await this.#client.tx.broadcast(tx)
 		} catch (e) {
 			Logger.log(`An error occured\n${JSON.stringify(e.response.data)}`)
