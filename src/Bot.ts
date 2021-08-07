@@ -62,6 +62,7 @@ export class Bot {
 			URL: this.#config.lcdUrl,
 			chainID: this.#config.chainId,
 			gasPrices: '0.15uusd',
+			gasAdjustment: 1.6,
 		})
 
 		// Initialization of the Anchor Client
@@ -404,7 +405,6 @@ export class Bot {
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], fee: new StdFee(600_000, { uusd: 90_000 }) })
 				await this.#client.tx.broadcast(tx)
 				await sleep(6)
-
 				Logger.toBroadcast(`→ Swapped ANC for Luna`, 'tgBot')
 			} else {
 				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.anc}</code>... Skipping ANC swap`, 'tgBot')
