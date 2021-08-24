@@ -61,7 +61,7 @@ export class Bot {
 		this.#client = new LCDClient({
 			URL: this.#config.lcdUrl,
 			chainID: this.#config.chainId,
-			gasPrices: '0.15uusd',
+			gasPrices: '0.456uusd',
 		})
 
 		// Initialization of the Anchor Client
@@ -380,7 +380,7 @@ export class Bot {
 			Logger.toBroadcast(`ANC balance: <code>${ancBalance.toFixed()}</code>`, 'tgBot')
 
 			if (+ancBalance > this.#config.compoundMins.anc) {
-				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed()).execute(this.#wallet, { gasPrices: '0.15uusd' })
+				await this.#anchor.anchorToken.sellANC(ancBalance.toFixed()).execute(this.#wallet, { gasPrices: '0.456uusd' })
 				await sleep(6)
 
 				if (type === 'earn') {
@@ -446,7 +446,7 @@ export class Bot {
 						collateral: COLLATERAL_DENOMS.UBLUNA,
 						market: MARKET_DENOMS.UUSD,
 					})
-					.execute(this.#wallet, { gasPrices: '0.15uusd' })
+					.execute(this.#wallet, { gasPrices: '0.456uusd' })
 
 				Logger.toBroadcast(`→ Compounded <code>${bLunaBalance.toFixed()} bLuna</code>`, 'tgBot')
 			} else {
