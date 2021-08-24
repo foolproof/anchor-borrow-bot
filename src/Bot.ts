@@ -61,7 +61,7 @@ export class Bot {
 		this.#client = new LCDClient({
 			URL: this.#config.lcdUrl,
 			chainID: this.#config.chainId,
-			gasPrices: '0.38uusd',
+			gasPrices: '0.456uusd',
 			gasAdjustment: 1.6,
 		})
 
