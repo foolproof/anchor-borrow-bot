@@ -515,24 +515,29 @@ export class Bot {
 		return new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100).minus(borrowedValue)
 	}
 
-	getDeposit(): Promise<Decimal> {
-		return this.cache('deposit', () => this.#anchor.earn.getTotalDeposit(this.#walletDenom))
+	async getDeposit(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.earn.getTotalDeposit(this.#walletDenom))
+		// return this.cache('deposit', () => this.#anchor.earn.getTotalDeposit(this.#walletDenom))
 	}
 
-	getBorrowedValue(): Promise<Decimal> {
-		return this.cache('borrowedValue', () => this.#anchor.borrow.getBorrowedValue(this.#walletDenom))
+	async getBorrowedValue(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.borrow.getBorrowedValue(this.#walletDenom))
+		// return this.cache('borrowedValue', () => this.#anchor.borrow.getBorrowedValue(this.#walletDenom))
 	}
 
-	getBorrowLimit(): Promise<Decimal> {
-		return this.cache('borrowLimit', () => this.#anchor.borrow.getBorrowLimit(this.#walletDenom))
+	async getBorrowLimit(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.borrow.getBorrowLimit(this.#walletDenom))
+		// return this.cache('borrowLimit', () => this.#anchor.borrow.getBorrowLimit(this.#walletDenom))
 	}
 
-	getANCBalance(): Promise<Decimal> {
-		return this.cache('ancBalance', () => this.#anchor.anchorToken.getBalance(this.#wallet.key.accAddress))
+	async getANCBalance(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.anchorToken.getBalance(this.#wallet.key.accAddress))
+		// return this.cache('ancBalance', () => this.#anchor.anchorToken.getBalance(this.#wallet.key.accAddress))
 	}
 
-	getANCPrice(): Promise<Decimal> {
-		return this.cache('ancPrice', () => this.#anchor.anchorToken.getANCPrice())
+	async getANCPrice(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.anchorToken.getANCPrice())
+		// return this.cache('ancPrice', () => this.#anchor.anchorToken.getANCPrice())
 	}
 
 	computeBorrowMessage(amount: Decimal) {
