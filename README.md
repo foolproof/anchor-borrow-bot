@@ -5,6 +5,8 @@ The main goal of this bot is to avoid being liquidated due to the price volatili
 > :warning: You will need to **use your private key** to let the bot create and sign transactions.
 > We highly recommend to **create a dedicated wallet** and **we decline all responsibility if you lose any money**.
 
+In case you need help or wanna get updates, feel free to join our [Telegram Group](https://t.me/joinchat/QSb-eRhnCmw0MDM0).
+
 <br />
 
 ## How it Works?
@@ -94,6 +96,12 @@ If you want to send any tips, you can send them to `terra17lkkhegetxqua7s7g7k3xr
 <br />
 
 ## Changelogs
+
+### 0.2.9
+
+- Remove the cache since it seems to cause issue for some people.
+- Increase gas price for pre Columbus-5 update.
+- Increase gas adjustement to avoid `out-of-gas` error.
 
 ### 0.2.8
 
