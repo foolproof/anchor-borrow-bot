@@ -61,7 +61,8 @@ export class Bot {
 		this.#client = new LCDClient({
 			URL: this.#config.lcdUrl,
 			chainID: this.#config.chainId,
-			gasPrices: '0.15uusd',
+			gasPrices: '0.456uusd',
+			gasAdjustment: 1.6,
 		})
 
 		// Initialization of the Anchor Client
@@ -82,7 +83,7 @@ export class Bot {
 	}
 
 	info() {
-		Logger.log(dedent`<b>v0.2.7 - Anchor Borrow / Repay Bot</b>
+		Logger.log(dedent`<b>v0.2.9 - Anchor Borrow / Repay Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -107,8 +108,8 @@ export class Bot {
 
 	set(path: string, value: any) {
 		if (path === 'ltv.limit') {
-			if (+value > 49) {
-				Logger.log('You cannot go over <code>49</code>.')
+			if (+value > 59) {
+				Logger.log('You cannot go over <code>59</code>.')
 				return
 			}
 
@@ -404,7 +405,6 @@ export class Bot {
 				const tx = await this.#wallet.createAndSignTx({ msgs: [msg], fee: new StdFee(600_000, { uusd: 90_000 }) })
 				await this.#client.tx.broadcast(tx)
 				await sleep(6)
-
 				Logger.toBroadcast(`→ Swapped ANC for Luna`, 'tgBot')
 			} else {
 				Logger.toBroadcast(`→ less than <code>${this.#config.compoundMins.anc}</code>... Skipping ANC swap`, 'tgBot')
@@ -497,13 +497,13 @@ export class Bot {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
 
-		return borrowedValue.dividedBy(borrowLimit.times(2)).times(100)
+		return borrowedValue.dividedBy(borrowLimit.times(10).dividedBy(6)).times(100)
 	}
 
 	async computeAmountToRepay(target = this.#config.ltv.safe) {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
-		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(2).dividedBy(100))
+		const amountForSafeZone = new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100)
 
 		return borrowedValue.minus(amountForSafeZone)
 	}
@@ -512,27 +512,32 @@ export class Bot {
 		const borrowedValue = await this.getBorrowedValue()
 		const borrowLimit = await this.getBorrowLimit()
 
-		return new Decimal(target).times(borrowLimit.times(2)).dividedBy(100).minus(borrowedValue)
+		return new Decimal(target).times(borrowLimit.times(10).dividedBy(6)).dividedBy(100).minus(borrowedValue)
 	}
 
-	getDeposit(): Promise<Decimal> {
-		return this.cache('deposit', () => this.#anchor.earn.getTotalDeposit(this.#walletDenom))
+	async getDeposit(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.earn.getTotalDeposit(this.#walletDenom))
+		// return this.cache('deposit', () => this.#anchor.earn.getTotalDeposit(this.#walletDenom))
 	}
 
-	getBorrowedValue(): Promise<Decimal> {
-		return this.cache('borrowedValue', () => this.#anchor.borrow.getBorrowedValue(this.#walletDenom))
+	async getBorrowedValue(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.borrow.getBorrowedValue(this.#walletDenom))
+		// return this.cache('borrowedValue', () => this.#anchor.borrow.getBorrowedValue(this.#walletDenom))
 	}
 
-	getBorrowLimit(): Promise<Decimal> {
-		return this.cache('borrowLimit', () => this.#anchor.borrow.getBorrowLimit(this.#walletDenom))
+	async getBorrowLimit(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.borrow.getBorrowLimit(this.#walletDenom))
+		// return this.cache('borrowLimit', () => this.#anchor.borrow.getBorrowLimit(this.#walletDenom))
 	}
 
-	getANCBalance(): Promise<Decimal> {
-		return this.cache('ancBalance', () => this.#anchor.anchorToken.getBalance(this.#wallet.key.accAddress))
+	async getANCBalance(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.anchorToken.getBalance(this.#wallet.key.accAddress))
+		// return this.cache('ancBalance', () => this.#anchor.anchorToken.getBalance(this.#wallet.key.accAddress))
 	}
 
-	getANCPrice(): Promise<Decimal> {
-		return this.cache('ancPrice', () => this.#anchor.anchorToken.getANCPrice())
+	async getANCPrice(): Promise<Decimal> {
+		return new Decimal(await this.#anchor.anchorToken.getANCPrice())
+		// return this.cache('ancPrice', () => this.#anchor.anchorToken.getANCPrice())
 	}
 
 	computeBorrowMessage(amount: Decimal) {
