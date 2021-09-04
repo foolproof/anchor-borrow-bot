@@ -8,6 +8,7 @@ WORKDIR /app
 # Install dependencies to speed up testing
 COPY ["package*.json", "./"]
 RUN npm install --production
+RUN npm install -g ts-node
 
 COPY . .
 
